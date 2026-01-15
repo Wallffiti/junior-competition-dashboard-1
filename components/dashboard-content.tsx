@@ -74,12 +74,16 @@ export function DashboardContent() {
       const stageIds = stageData.map((stage) => stage.stageId)
 
       const possibleCategories = ["Junior-Scratch"]
+      const currentYear = new Date().getFullYear().toString()
 
       const { data: updatesData, error: updatesError } = await supabase
         .from("update")
-        .select("stageId, content, description, category")
+        .select("stageId, content, description, category, announcement_date")
         .in("stageId", stageIds)
         .in("category", possibleCategories)
+        .eq("competition_year", currentYear)
+        .eq("is_archived", false)
+        .order("announcement_date", { ascending: false })
 
       if (updatesError || !updatesData) {
         console.warn("Updates not found:", updatesError?.message)
@@ -137,7 +141,16 @@ export function DashboardContent() {
           <CardTitle className="text-xl font-semibold">Need Help?</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>Contact support</p>
+          <p>
+            <a
+              href="https://wa.me/60132208130"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Contact support via WhatsApp
+            </a>
+          </p>
           <p className="text-sm text-muted-foreground mt-2">
             If you have any questions, our support team is here to help.
           </p>

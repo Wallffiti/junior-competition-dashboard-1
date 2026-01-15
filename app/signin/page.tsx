@@ -113,41 +113,68 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">Sign in</CardTitle>
-          <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="m@example.com" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-              />
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="w-full max-w-md">
+        {/* Category Indicator */}
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+          <p className="text-sm font-semibold text-green-900">Junior Scratch Category</p>
+          <p className="text-xs text-green-700 mt-1">This login is for Junior-Scratch participants</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold text-center">Sign in</CardTitle>
+            <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="m@example.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+
+            {/* Wrong Category Notice */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mb-3">Not in Junior-Scratch category?</p>
+              <div className="space-y-2">
+                <a 
+                  href="https://seniorscratch.bugcrusher.net/"
+                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors"
+                >
+                  → Senior Scratch
+                </a>
+                <a 
+                  href="https://seniorweb.bugcrusher.net/"
+                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg border border-purple-200 transition-colors"
+                >
+                  → Senior Web (HTML)
+                </a>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-              />
-            </div>
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
