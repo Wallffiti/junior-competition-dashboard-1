@@ -14,10 +14,14 @@ import React from "react"
  */
 
 interface InlineContent {
-  type: "text" | "link"
+  type: "text" | "link" | "inlineImage"
   text?: string
   content?: InlineContent[]
   href?: string
+  props?: {
+    url?: string
+    alt?: string
+  }
   styles?: {
     bold?: boolean
     italic?: boolean
@@ -72,7 +76,7 @@ export const BlockNoteRenderer: React.FC<BlockNoteRendererProps> = ({
   }
 
   /**
-   * Renders inline content (text with styles and links)
+   * Renders inline content (text with styles, links, and inline images)
    * Properly handles BlockNote's link structure with content arrays
    */
   const renderInlineContent = (inlineContent: any): React.ReactNode => {
@@ -92,6 +96,28 @@ export const BlockNoteRenderer: React.FC<BlockNoteRendererProps> = ({
 
         if (!item || typeof item !== "object") {
           return null
+        }
+
+        // Handle inline images
+        if (item.type === "inlineImage") {
+          const url = item.props?.url || ""
+          const alt = item.props?.alt || "image"
+          return (
+            <img
+              key={idx}
+              src={url}
+              alt={alt}
+              style={{
+                display: "inline-block",
+                maxHeight: "1.5em",
+                maxWidth: "200px",
+                marginLeft: "0.25em",
+                marginRight: "0.25em",
+                verticalAlign: "middle",
+              }}
+              className="rounded"
+            />
+          )
         }
 
         // Handle text with styles
