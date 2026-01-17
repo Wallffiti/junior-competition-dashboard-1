@@ -73,14 +73,15 @@ export function DashboardContent() {
 
       const stageIds = stageData.map((stage) => stage.stageId)
 
-      const possibleCategories = ["Junior-Scratch"]
+      // Use user's actual category instead of hardcoded Junior-Scratch
+      const userCategory = teamData.category || "Junior-Scratch"
       const currentYear = new Date().getFullYear().toString()
 
       const { data: updatesData, error: updatesError } = await supabase
         .from("update")
         .select("stageId, content, description, category, announcement_date")
         .in("stageId", stageIds)
-        .in("category", possibleCategories)
+        .eq("category", userCategory)
         .eq("competition_year", currentYear)
         .eq("is_archived", false)
         .order("announcement_date", { ascending: false })

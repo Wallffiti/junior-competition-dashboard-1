@@ -35,12 +35,12 @@ export default function SignInPage() {
       return null;
     }
   
-    // If not a teacher, check parentEmail in teamMembers
+    // If not a teacher, check studentEmail in teamMembers
     console.log("Not found as teacher, checking teamMembers...");
     const { data: memberData, error: memberError } = await supabase
       .from("teams")
       .select("teamName, category")
-      .contains("teamMembers", JSON.stringify([{ parentEmail: userEmail }])) // Stringify the array
+      .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }])) // Stringify the array
       .single();
   
     if (memberData) {
@@ -84,29 +84,20 @@ export default function SignInPage() {
       setIsLoading(false);
       toast({ 
         title: "Login Failed", 
-        description: "No team found for this email (neither as teacher nor parent)", 
+        description: "No team found for this email (neither as teacher nor student)", 
         variant: "destructive" 
       });
       await supabase.auth.signOut();
       return;
     }
 
-    if (teamInfo.category !== "Junior-Scratch") {
-      setIsLoading(false);
-      toast({ 
-        title: "Login Failed", 
-        description: "Wrong category. Only Junior-Scratch category is allowed.", 
-        variant: "destructive" 
-      });
-      await supabase.auth.signOut();
-      return;
-    }
-
+    // Allow all categories to login (removed Junior-Scratch restriction)
+    
     // If everything is correct
     setIsLoading(false);
     toast({ 
       title: "Login Successful", 
-      description: `Welcome ${teamInfo.teamName}! Redirecting...`, 
+      description: `Welcome ${teamInfo.teamName} (${teamInfo.category})! Redirecting...`, 
       duration: 3000 
     });
     router.push("/dashboard");
@@ -116,9 +107,9 @@ export default function SignInPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-md">
         {/* Category Indicator */}
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-          <p className="text-sm font-semibold text-green-900">Junior Scratch Category</p>
-          <p className="text-xs text-green-700 mt-1">This login is for Junior-Scratch participants</p>
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+          <p className="text-sm font-semibold text-blue-900">Bugcrusher Dashboard</p>
+          <p className="text-xs text-blue-700 mt-1">Sign in to access your competition dashboard</p>
         </div>
 
         <Card>
@@ -154,23 +145,19 @@ export default function SignInPage() {
               </Button>
             </form>
 
-            {/* Wrong Category Notice */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-3">Not in Junior-Scratch category?</p>
-              <div className="space-y-2">
+            {/* Sign Up Link */}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                Do not have an account yet?{" "}
                 <a 
-                  href="https://seniorscratch.bugcrusher.net/"
-                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors"
+                  href="https://challenge.bugcrusher.net/signup" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-medium underline"
                 >
-                  → Senior Scratch
+                  Click here to Sign Up
                 </a>
-                <a 
-                  href="https://seniorweb.bugcrusher.net/"
-                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg border border-purple-200 transition-colors"
-                >
-                  → Senior Web (HTML)
-                </a>
-              </div>
+              </p>
             </div>
           </CardContent>
         </Card>

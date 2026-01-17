@@ -64,6 +64,9 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
       }
       setTeamDetails(teamData);
 
+      // Get user's category dynamically
+      const userCategory = teamData.category || "Junior-Scratch";
+
       const { data: teamGroupings, error: groupingError } = await supabase
         .from("teamGroupings")
         .select("grouping")
@@ -125,14 +128,14 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
         .select("description, expectedDescription, expectedBehaviorImg, bugImageImg")
         .eq("stageId", stageId)
         .eq("bugNumber", bugNumber)
-        .eq("category", "Junior-Scratch")
+        .eq("category", userCategory)
         .single();
 
       if (bugError || !bugData) {
-        console.warn("Bug not found or not in Junior-Scratch category:", bugError?.message);
+        console.warn("Bug not found for category:", userCategory, bugError?.message);
         toast({
           title: "Error",
-          description: "Bug not found or does not belong to Junior-Scratch category.",
+          description: `Bug not found for your category (${userCategory}).`,
           variant: "destructive",
         });
         return;

@@ -9,7 +9,6 @@ import { BlockNoteRenderer } from "@/components/blocknote-renderer"
 const Page = () => {
   const [missionPackContent, setMissionPackContent] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [debugInfo, setDebugInfo] = useState<any>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -66,45 +65,25 @@ const Page = () => {
         }
 
         const stageId = stageData.stageId
-
-        console.log("Querying missionPacks with stageId:", stageId, "type:", typeof stageId, "and category: Junior-Scratch")
-
-        // Ensure stageId is a string for comparison
         const stageIdStr = String(stageId)
 
-        // Debug: Fetch all mission packs to see what's available
-        const { data: allMissionPacks, error: allError } = await supabase
-          .from("missionPacks")
-          .select("missionPackId, stageId, category")
-        
-        console.log("All mission packs available:", allMissionPacks, allError)
-
-        // Store debug info
-        const debug = {
-          activeGroup,
-          stageId,
-          stageIdStr,
-          allMissionPacks
-        }
-        setDebugInfo(debug)
+        // Get user's category dynamically
+        const userCategory = teamData.category || "Junior-Scratch"
 
         // Step 4: Fetch mission pack content from missionPacks table with category filter
         const { data: missionPackData, error: missionPackError } = await supabase
           .from("missionPacks")
           .select("content")
           .eq("stageId", stageIdStr)
-          .eq("category", "Junior-Scratch")
+          .eq("category", userCategory)
           .single()
 
         if (missionPackError || !missionPackData) {
-          console.error("Error fetching mission pack with stageId:", missionPackError)
-          
-          // Fallback: Try to fetch Junior-Scratch mission pack without stageId filter
-          console.log("Trying fallback query for Junior-Scratch category only...")
+          // Fallback: Try to fetch mission pack for user's category without stageId filter
           const { data: fallbackData, error: fallbackError } = await supabase
             .from("missionPacks")
             .select("content")
-            .eq("category", "Junior-Scratch")
+            .eq("category", userCategory)
             .single()
 
           if (fallbackError || !fallbackData) {
@@ -116,14 +95,9 @@ const Page = () => {
             )
           }
 
-          console.log("Fallback successful! Mission Pack Data:", fallbackData)
           setMissionPackContent(fallbackData.content)
           return
         }
-
-        console.log("Mission Pack Data:", missionPackData)
-        console.log("Mission Pack Content:", missionPackData.content)
-        console.log("Content Type:", typeof missionPackData.content)
 
         setMissionPackContent(missionPackData.content)
       } catch (error: any) {
@@ -149,15 +123,7 @@ const Page = () => {
   if (!missionPackContent) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <p>No mission pack available for the current stage in Junior-Scratch category.</p>
-        {debugInfo && (
-          <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-300">
-            <h3 className="font-bold mb-2">Debug Info:</h3>
-            <pre className="text-xs overflow-auto max-h-96">
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
-          </div>
-        )}
+        <p>No mission pack available for the current stage.</p>
       </div>
     )
   }

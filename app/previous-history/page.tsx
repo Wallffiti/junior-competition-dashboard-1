@@ -5,10 +5,11 @@ import { supabase } from "@/lib/supabase";
 import { getUserTeamDetails } from "@/lib/teamHelpers";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, ArrowLeft } from "lucide-react";
 import { SubmissionDetailsModal } from "@/components/submission-details-modal";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 type Submission = {
   id: string;
@@ -29,6 +30,7 @@ export default function HistoryPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [submissionToDelete, setSubmissionToDelete] = useState<Submission | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const storageBaseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`;
 
@@ -173,7 +175,17 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6 p-12">
-      <h1 className="text-3xl font-bold">Submission History</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Submission History</h1>
+        <Button 
+          onClick={() => router.push("/dashboard")}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+      </div>
 
       <Table>
         <TableCaption>A list of your recent submissions</TableCaption>

@@ -22,15 +22,15 @@ export async function getUserTeam(email: string) {
     return teacherTeam.teamName;
   }
 
-  // 2️⃣ Check if the user is a TEAM MEMBER (parent email inside JSONB)
-  const { data: parentTeam } = await supabase
+  // 2️⃣ Check if the user is a TEAM MEMBER (student email inside JSONB)
+  const { data: studentTeam } = await supabase
     .from("teams")
     .select("teamName")
-    .filter("teamMembers", "cs", `[{"parentEmail": "${email}"}]`)
+    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
     .maybeSingle();
 
-  if (parentTeam) {
-    return parentTeam.teamName;
+  if (studentTeam) {
+    return studentTeam.teamName;
   }
 
   return null;
@@ -61,9 +61,9 @@ export async function fetchUserTeamData(setUserEmail: any, setTeamName: any, set
       return;
     }
 
-    // Check if the user is a team member (by parentEmail)
+    // Check if the user is a team member (by studentEmail)
     const foundMember = team.teamMembers.find(
-      (member: any) => member.parentEmail === email
+      (member: any) => member.studentEmail === email
     );
     if (foundMember) {
       setTeamName(team.teamName);

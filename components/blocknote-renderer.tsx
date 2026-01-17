@@ -294,6 +294,25 @@ export const BlockNoteRenderer: React.FC<BlockNoteRendererProps> = ({
 
         // Image
         case "image":
+          if (!props.url) {
+            console.warn("Image block missing URL:", block)
+            return (
+              <figure key={id || index} className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-sm text-yellow-800">⚠️ Image URL not available</p>
+                {props.caption && (
+                  <figcaption className="text-sm text-gray-600 mt-2">
+                    Caption: {props.caption}
+                  </figcaption>
+                )}
+              </figure>
+            )
+          }
+          
+          // Check if URL is from Google's restricted domains
+          const isGoogleUrl = props.url.includes('googleusercontent.com') || 
+                             props.url.includes('drive.google.com') ||
+                             props.url.includes('docs.google.com')
+          
           const imgStyle: React.CSSProperties = {
             maxWidth: "100%",
             height: "auto",
@@ -310,7 +329,28 @@ export const BlockNoteRenderer: React.FC<BlockNoteRendererProps> = ({
                 alt={props.caption || "Image"}
                 className="rounded-lg"
                 style={imgStyle}
+                onError={(e) => {
+                  console.error("Image failed to load:", props.url)
+                  e.currentTarget.style.display = 'none'
+                  const errorMsg = e.currentTarget.parentElement?.querySelector('.img-error')
+                  if (errorMsg) errorMsg.classList.remove('hidden')
+                }}
               />
+              <div className="img-error hidden p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
+                <p className="text-sm font-semibold text-amber-900 mb-2">🖼️ Image cannot be displayed</p>
+                <p className="text-sm text-amber-800">
+                  Please reach out to support team (WhatsApp:{" "}
+                  <a 
+                    href="https://wa.me/60132208130" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline font-semibold"
+                  >
+                    0132208130
+                  </a>
+                  )
+                </p>
+              </div>
               {props.caption && (
                 <figcaption className="text-sm text-gray-600 mt-2 text-center">
                   {props.caption}
