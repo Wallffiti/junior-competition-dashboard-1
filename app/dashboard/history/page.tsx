@@ -34,11 +34,10 @@ export default function HistoryPage() {
 
   const storageBaseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`;
 
-  // Function to convert UTC to Kuala Lumpur time (+8 hours)
+  // Function to convert UTC to Kuala Lumpur time
   const convertToKLTime = (utcDate: string) => {
-    const utcTime = new Date(utcDate);
-    const klTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000);
-    return klTime.toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur" });
+    const date = new Date(utcDate);
+    return date.toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur" });
   };
 
   useEffect(() => {
@@ -85,7 +84,7 @@ export default function HistoryPage() {
           type: `Bug #${b.bugNumber}`,
           tableName: "bugSubmissions",
           submittedBy: b.authorName,
-          submissionDate: convertToKLTime(b.createdAt),
+          submissionDate: convertToKLTime(b.serverTime),
           stage: b.stage,
           details: {
             ...b,
@@ -97,7 +96,7 @@ export default function HistoryPage() {
           type: e.enhancementType === "advanced" ? "Advanced Enhancement" : "Medium Enhancement",
           tableName: "enhancements",
           submittedBy: e.authorName,
-          submissionDate: convertToKLTime(e.createdAt),
+          submissionDate: convertToKLTime(e.serverTime),
           stage: e.stage,
           details: {
             ...e,
@@ -109,7 +108,7 @@ export default function HistoryPage() {
           type: "Brainstorm Map",
           tableName: "brainstormMaps",
           submittedBy: bm.authorName,
-          submissionDate: convertToKLTime(bm.createdAt),
+          submissionDate: convertToKLTime(bm.serverTime),
           stage: bm.stage,
           details: {
             ...bm,
@@ -121,7 +120,7 @@ export default function HistoryPage() {
           type: "Presentation",
           tableName: "presentations",
           submittedBy: p.authorName,
-          submissionDate: convertToKLTime(p.createdAt),
+          submissionDate: convertToKLTime(p.serverTime),
           stage: p.stage,
           details: p,
         })) || []),
@@ -130,7 +129,7 @@ export default function HistoryPage() {
           type: "Project",
           tableName: "projects",
           submittedBy: pr.authorName,
-          submissionDate: convertToKLTime(pr.createdAt),
+          submissionDate: convertToKLTime(pr.serverTime),
           stage: pr.stage,
           details: pr,
         })) || []),

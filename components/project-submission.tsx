@@ -13,12 +13,14 @@ import { Icons } from "@/components/ui/icons";
 
 export function ProjectSubmission() {
   const [scratchFile, setScratchFile] = useState<File | null>(null);
+  const [projectLink, setProjectLink] = useState<string>("");
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
   const [is4Submission, setIs4Submission] = useState(false);
   const [isTrialChallenge, setIsTrialChallenge] = useState(false);
   const [competitionYear, setCompetitionYear] = useState<string | null>(null);
   const [isArchived, setIsArchived] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [teamCategory, setTeamCategory] = useState<string | null>(null);
   const [teamDetails, setTeamDetails] = useState<{ teamId: string; teamName: string; authorName: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -89,10 +91,10 @@ export function ProjectSubmission() {
       setIs4Submission(activeGroupings[0]?.is4Submission || false);
       setIsTrialChallenge(activeGroupings[0]?.is_trial || false);
 
-      // Fetch competition year
+      // Fetch competition year and category
       const { data: teamInfo, error: teamInfoError } = await supabase
         .from("teams")
-        .select("competition_year, is_archived")
+        .select("competition_year, is_archived, category")
         .eq("id", teamData.teamId)
         .single();
       
@@ -104,6 +106,10 @@ export function ProjectSubmission() {
       if (teamInfo?.competition_year) {
         setCompetitionYear(teamInfo.competition_year);
       }
+      
+      if (teamInfo?.category) {
+        setTeamCategory(teamInfo.category);
+      }
     };
 
     fetchUserDataAndGrouping();
@@ -111,6 +117,7 @@ export function ProjectSubmission() {
 
   const resetForm = () => {
     setScratchFile(null);
+    setProjectLink("");
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (formRef.current) formRef.current.reset();
   };
@@ -208,14 +215,30 @@ export function ProjectSubmission() {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!scratchFile || !validateFile(scratchFile)) {
-      toast({
-        title: "Submission Failed",
-        description: "Please select a valid .sb3 file under 50MB.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
+    // Check if it's Senior-HTML category (link submission)
+    const isSeniorHTML = teamCategory === "Senior-HTML";
+
+    // Validate based on submission type
+    if (isSeniorHTML) {
+      if (!projectLink.trim()) {
+        toast({
+          title: "Submission Failed",
+          description: "Please enter a valid project link.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      if (!scratchFile || !validateFile(scratchFile)) {
+        toast({
+          title: "Submission Failed",
+          description: "Please select a valid .sb3 file under 50MB.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
     }
 
     const isGroupingActive = await checkGroupingStatus();
@@ -242,16 +265,22 @@ export function ProjectSubmission() {
     }
 
     try {
-      const projectLink = await uploadScratchFile();
-      if (!projectLink) {
-        throw new Error("File upload failed.");
+      let finalProjectLink = projectLink;
+
+      // If not Senior-HTML, upload the file
+      if (!isSeniorHTML) {
+        const uploadedLink = await uploadScratchFile();
+        if (!uploadedLink) {
+          throw new Error("File upload failed.");
+        }
+        finalProjectLink = uploadedLink;
       }
 
       const { error } = await supabase.from("projects").insert([
         {
           teamId: teamDetails.teamId,
           authorName: teamDetails.authorName,
-          projectLink,
+          projectLink: finalProjectLink,
           stage: activeGrouping,
           createdAt: new Date().toISOString(),
           penalty: is4Submission,
@@ -266,7 +295,9 @@ export function ProjectSubmission() {
 
       toast({
         title: "Project Submitted",
-        description: "Your Scratch project has been submitted successfully.",
+        description: isSeniorHTML 
+          ? "Your project link has been submitted successfully."
+          : "Your Scratch project has been submitted successfully.",
       });
 
       resetForm();
@@ -289,32 +320,57 @@ export function ProjectSubmission() {
     );
   }
 
+  // Check if it's Senior-HTML category for link submission
+  const isSeniorHTML = teamCategory === "Senior-HTML";
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Submit Scratch Project</CardTitle>
+        <CardTitle className="text-xl font-semibold">
+          {isSeniorHTML ? "Submit Project Link" : "Submit Scratch Project"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="scratchFile">Scratch Project File (.sb3)</Label>
-            <Input
-              id="scratchFile"
-              type="file"
-              accept=".sb3"
-              onChange={handleFileChange}
-              ref={fileInputRef}
-              required
-            />
-            <p className="text-sm text-gray-500">
-              Maximum file size: 50MB
-            </p>
-            {scratchFile && (
-              <p className="text-sm text-gray-500">Selected file: {scratchFile.name}</p>
-            )}
-          </div>
+          {isSeniorHTML ? (
+            // Link submission for Senior-HTML
+            <div key="link-input" className="space-y-2">
+              <Label htmlFor="projectLink">Project Link</Label>
+              <Input
+                id="projectLink"
+                type="url"
+                placeholder="https://your-project-link.com"
+                value={projectLink}
+                onChange={(e) => setProjectLink(e.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            // File upload for Scratch projects
+            <div key="file-input" className="space-y-2">
+              <Label htmlFor="scratchFile">Scratch Project File (.sb3)</Label>
+              <Input
+                id="scratchFile"
+                type="file"
+                accept=".sb3"
+                onChange={handleFileChange}
+                ref={fileInputRef}
+                required
+              />
+              <p className="text-sm text-gray-500">
+                Maximum file size: 50MB
+              </p>
+              {scratchFile && (
+                <p className="text-sm text-gray-500">Selected file: {scratchFile.name}</p>
+              )}
+            </div>
+          )}
           <div>
-            <Button type="submit" className="w-full" disabled={isLoading || !scratchFile}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading || (isSeniorHTML ? !projectLink : !scratchFile)}
+            >
               {isLoading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : "Submit Project"}
             </Button>
             {is4Submission && (
