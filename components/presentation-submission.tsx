@@ -15,6 +15,9 @@ export function PresentationSubmission() {
   const [youtubeLink, setYoutubeLink] = useState("");
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
   const [isPresentation, setIsPresentation] = useState(false);
+  const [isTrialChallenge, setIsTrialChallenge] = useState(false);
+  const [competitionYear, setCompetitionYear] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [teamDetails, setTeamDetails] = useState<{ teamId: string; teamName: string; authorName: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -45,7 +48,7 @@ export function PresentationSubmission() {
         const groupingNames = teamGroupings.map((g) => g.grouping);
         const { data: activeGroupings, error: statusError } = await supabase
           .from("groupingStatus")
-          .select("grouping, isPresentation")
+          .select("grouping, isPresentation, is_trial")
           .in("grouping", groupingNames)
           .eq("status", "active");
 
@@ -57,6 +60,23 @@ export function PresentationSubmission() {
         const activeGroup = activeGroupings[0]?.grouping || null;
         setActiveGrouping(activeGroup);
         setIsPresentation(activeGroupings[0]?.isPresentation || false);
+        setIsTrialChallenge(activeGroupings[0]?.is_trial || false);
+
+        // Fetch competition year
+        const { data: teamInfo, error: teamInfoError } = await supabase
+          .from("teams")
+          .select("competition_year, is_archived")
+          .eq("id", teamData.teamId)
+          .single();
+        
+        if (teamInfo?.is_archived === true) {
+          setIsArchived(true);
+          return;
+        }
+        
+        if (teamInfo?.competition_year) {
+          setCompetitionYear(teamInfo.competition_year);
+        }
       }
     };
 
@@ -132,6 +152,8 @@ export function PresentationSubmission() {
           stage: activeGrouping,
           createdAt: new Date().toISOString(),
           penalty: isPresentation, // Set penalty based on isPresentation
+          trial_status: isTrialChallenge,
+          competition_year: competitionYear,
         },
       ]);
 
@@ -155,6 +177,14 @@ export function PresentationSubmission() {
       setIsLoading(false);
     }
   };
+
+  if (isArchived) {
+    return (
+      <div className="p-6">
+        <p>This team has been archived. Please register for a new team to participate.</p>
+      </div>
+    );
+  }
 
   return (
     <Card>

@@ -100,6 +100,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   const isDashboardRoot = pathname === "/dashboard"; // Check if we're on the root dashboard
+  const isProfilePage = pathname === "/dashboard/profile"; // Check if we're on the profile page
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -130,6 +131,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {isDashboardRoot ? (
             // Show DashboardContent on /dashboard regardless of isAllowed
             <DashboardContent />
+          ) : isProfilePage ? (
+            // Always show profile page regardless of isAllowed
+            children
           ) : isAllowed === null ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-lg text-gray-600">Checking access...</p>
@@ -170,10 +174,11 @@ function Sidebar({ onSignOut }: { onSignOut: () => void }) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [teamName, setTeamName] = useState<string>("Loading...");
   const [userName, setUserName] = useState<string>("User");
+  const [category, setCategory] = useState<string>("Loading...");
   const pathname = usePathname();
 
   useEffect(() => {
-    fetchUserTeamData(setUserEmail, setTeamName, setUserName);
+    fetchUserTeamData(setUserEmail, setTeamName, setUserName, setCategory);
   }, []);
 
   const sidebarItems = [
@@ -206,12 +211,13 @@ function Sidebar({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center border-b px-4">
+      <div className="border-b px-4 py-3">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 font-semibold"
+          className="flex flex-col gap-1"
         >
-          <span className="text-lg">{teamName}</span>
+          <span className="text-lg font-semibold">{teamName}</span>
+          <span className="text-xs text-gray-600">{category}</span>
         </Link>
       </div>
       <ScrollArea className="flex-1 py-4">
@@ -346,18 +352,26 @@ function UserProfile({
   userName: string;
   userEmail: string | null;
 }) {
+  const router = useRouter();
+
   return (
     <div className="flex items-center gap-3 w-full">
-      <Avatar>
-        <AvatarImage src="/avatars/01.png" alt={userName} />
-        <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">{userName}</span>
-        <span className="text-xs text-gray-500 truncate block">
-          {userEmail || "N/A"}
-        </span>
-      </div>
+      <button
+        onClick={() => router.push("/dashboard/profile")}
+        className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+        title="View Profile"
+      >
+        <Avatar>
+          <AvatarImage src="/avatars/01.png" alt={userName} />
+          <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium truncate block">{userName}</span>
+          <span className="text-xs text-gray-500 truncate block">
+            {userEmail || "N/A"}
+          </span>
+        </div>
+      </button>
       <Button
         variant="ghost"
         size="icon"

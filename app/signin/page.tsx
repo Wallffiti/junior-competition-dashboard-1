@@ -16,18 +16,17 @@ export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
   async function checkTeamCategory(userEmail: string) {
-    console.log("Checking team for email:", userEmail);
-  
     // First check if email matches teacherEmail
     let { data: teacherData, error: teacherError } = await supabase
       .from("teams")
-      .select("teamName, category")
+      .select("teamName, category, competition_year")
       .eq("teacherEmail", userEmail)
-      .single();
+      .order("competition_year", { ascending: false });
   
-    if (teacherData) {
-      console.log("Found as teacher:", teacherData);
-      return teacherData;
+    if (teacherData && teacherData.length > 0) {
+      // Use the team with the latest competition_year
+      const latestTeam = teacherData[0];
+      return latestTeam;
     }
   
     if (teacherError && teacherError.code !== "PGRST116") {
@@ -36,22 +35,20 @@ export default function SignInPage() {
     }
   
     // If not a teacher, check studentEmail in teamMembers
-    console.log("Not found as teacher, checking teamMembers...");
     const { data: memberData, error: memberError } = await supabase
       .from("teams")
-      .select("teamName, category")
-      .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }])) // Stringify the array
-      .single();
+      .select("teamName, category, competition_year")
+      .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
+      .order("competition_year", { ascending: false });
   
-    if (memberData) {
-      console.log("Found as team member:", memberData);
-      return memberData;
+    if (memberData && memberData.length > 0) {
+      // Use the team with the latest competition_year
+      const latestTeam = memberData[0];
+      return latestTeam;
     }
   
     if (memberError && memberError.code !== "PGRST116") {
       console.error("Team members query error:", memberError);
-    } else {
-      console.log("No team found for this email in teamMembers");
     }
   
     return null;

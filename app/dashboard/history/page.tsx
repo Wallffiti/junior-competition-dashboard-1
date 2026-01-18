@@ -29,6 +29,7 @@ export default function HistoryPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [submissionToDelete, setSubmissionToDelete] = useState<Submission | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
   const { toast } = useToast();
 
   const storageBaseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`;
@@ -49,6 +50,18 @@ export default function HistoryPage() {
       if (!teamData) return;
 
       const teamId = teamData.teamId;
+
+      // Check if team is archived
+      const { data: teamInfo, error: teamInfoError } = await supabase
+        .from("teams")
+        .select("is_archived")
+        .eq("id", teamId)
+        .single();
+
+      if (teamInfo?.is_archived === true) {
+        setIsArchived(true);
+        return;
+      }
 
       // Fetch submissions from all tables, including the stage field
       const [bugRes, enhancementRes, brainstormRes, presentationRes, projectRes] = await Promise.all([
@@ -187,7 +200,11 @@ export default function HistoryPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Submission History</h1>
 
-      <Table>
+      {isArchived ? (
+        <p>This team has been archived. Please register for a new team to participate.</p>
+      ) : (
+        <>
+          <Table>
         <TableCaption>A list of your recent submissions</TableCaption>
         <TableHeader>
           <TableRow>
@@ -256,6 +273,8 @@ export default function HistoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   );
 }

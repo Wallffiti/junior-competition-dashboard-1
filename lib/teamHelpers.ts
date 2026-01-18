@@ -7,28 +7,31 @@ export const getUserTeamDetails = async (userEmail: string) => {
   // First, check if the user is a teacher
   const { data: teacherTeam, error: teacherError } = await supabase
     .from("teams")
-    .select("id, teamName, teacherEmail, teacherName, teamMembers, category")
+    .select("id, teamName, teacherEmail, teacherName, teamMembers, category, competition_year")
     .eq("teacherEmail", userEmail)
-    .single();
+    .order("competition_year", { ascending: false });
 
   if (teacherError && teacherError.code !== "PGRST116") {
     return null;
   }
 
-  if (teacherTeam) {
+  if (teacherTeam && teacherTeam.length > 0) {
+    // Use the team with the latest competition_year
+    const latestTeam = teacherTeam[0];
     return {
-      teamId: teacherTeam.id,
-      teamName: teacherTeam.teamName,
-      authorName: teacherTeam.teacherName, // Use teacher name
-      category: teacherTeam.category, // Add category
+      teamId: latestTeam.id,
+      teamName: latestTeam.teamName,
+      authorName: latestTeam.teacherName, // Use teacher name
+      category: latestTeam.category, // Add category
     };
   }
 
   // 🔥 FIXED: Query teamMembers JSONB correctly!
   const { data: studentTeams, error: studentError } = await supabase
     .from("teams")
-    .select("id, teamName, teamMembers, category")
-    .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }])); // ✅ JSON stringified
+    .select("id, teamName, teamMembers, category, competition_year")
+    .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
+    .order("competition_year", { ascending: false });
 
   if (studentError) {
     return null;
@@ -38,7 +41,7 @@ export const getUserTeamDetails = async (userEmail: string) => {
     return null;
   }
 
-  // Find the student in `teamMembers`
+  // Find the student in `teamMembers` - use latest year
   const team = studentTeams[0];
   const foundMember = team.teamMembers.find((member: any) => member.studentEmail === userEmail);
   

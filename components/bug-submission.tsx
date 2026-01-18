@@ -18,6 +18,9 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
   const [method, setMethod] = useState("");
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
   const [is4Submission, setIs4Submission] = useState(false);
+  const [isTrialChallenge, setIsTrialChallenge] = useState(false);
+  const [competitionYear, setCompetitionYear] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
   const [bugDetails, setBugDetails] = useState<{
     description: string;
     expectedDescription: string;
@@ -64,6 +67,22 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
       }
       setTeamDetails(teamData);
 
+      // Fetch team info including competition year and archived status
+      const { data: teamInfo, error: teamInfoError } = await supabase
+        .from("teams")
+        .select("competition_year, is_archived")
+        .eq("id", teamData.teamId)
+        .single();
+      
+      if (teamInfo?.is_archived === true) {
+        setIsArchived(true);
+        return;
+      }
+      
+      if (teamInfo?.competition_year) {
+        setCompetitionYear(teamInfo.competition_year);
+      }
+
       // Get user's category dynamically
       const userCategory = teamData.category || "Junior-Scratch";
 
@@ -85,7 +104,7 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
       const groupingNames = teamGroupings.map((g) => g.grouping);
       const { data: activeGroupings, error: statusError } = await supabase
         .from("groupingStatus")
-        .select("grouping, is4Submission")
+        .select("grouping, is4Submission, is_trial")
         .in("grouping", groupingNames)
         .eq("status", "active");
 
@@ -102,6 +121,7 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
       const activeGroup = activeGroupings[0]?.grouping || null;
       setActiveGrouping(activeGroup);
       setIs4Submission(activeGroupings[0]?.is4Submission || false);
+      setIsTrialChallenge(activeGroupings[0]?.is_trial || false);
 
       if (!activeGroup) return;
 
@@ -308,6 +328,8 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
           stage: activeGrouping,
           createdAt: new Date().toISOString(),
           penalty: is4Submission, // Set penalty based on is4Submission
+          trial_status: isTrialChallenge,
+          competition_year: competitionYear,
         },
       ]);
 
@@ -331,6 +353,14 @@ export function BugSubmission({ bugNumber }: { bugNumber: number }) {
       setIsLoading(false);
     }
   };
+
+  if (isArchived) {
+    return (
+      <div className="p-6">
+        <p>This team has been archived. Please register for a new team to participate.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid md:grid-cols-2 gap-6">

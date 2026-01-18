@@ -9,6 +9,7 @@ import { BlockNoteRenderer } from "@/components/blocknote-renderer"
 const Page = () => {
   const [missionPackContent, setMissionPackContent] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isArchived, setIsArchived] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -27,6 +28,25 @@ const Page = () => {
           throw new Error("Team data not found.")
         }
 
+        // Check if team is archived
+        const { data: teamInfo, error: teamInfoError } = await supabase
+          .from("teams")
+          .select("is_archived")
+          .eq("id", teamData.teamId)
+          .single()
+
+        if (teamInfoError) {
+          throw new Error("Failed to check team status.")
+        }
+
+        // If team is archived, show archived message
+        if (teamInfo?.is_archived === true) {
+          setIsArchived(true)
+          setMissionPackContent(null)
+          setIsLoading(false)
+          return
+        }
+
         // Step 2: Fetch active grouping
         const { data: teamGroupings, error: groupingError } = await supabase
           .from("teamGroupings")
@@ -38,6 +58,7 @@ const Page = () => {
         }
 
         const groupingNames = teamGroupings.map((g) => g.grouping)
+        
         const { data: activeGroupings, error: statusError } = await supabase
           .from("groupingStatus")
           .select("grouping")
@@ -65,7 +86,6 @@ const Page = () => {
         }
 
         const stageId = stageData.stageId
-        const stageIdStr = String(stageId)
 
         // Get user's category dynamically
         const userCategory = teamData.category || "Junior-Scratch"
@@ -74,9 +94,11 @@ const Page = () => {
         const { data: missionPackData, error: missionPackError } = await supabase
           .from("missionPacks")
           .select("content")
-          .eq("stageId", stageIdStr)
+          .eq("stageId", stageId)
           .eq("category", userCategory)
-          .single()
+          .order("missionPackId", { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
         if (missionPackError || !missionPackData) {
           // Fallback: Try to fetch mission pack for user's category without stageId filter
@@ -84,7 +106,9 @@ const Page = () => {
             .from("missionPacks")
             .select("content")
             .eq("category", userCategory)
-            .single()
+            .order("missionPackId", { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
           if (fallbackError || !fallbackData) {
             throw new Error(
@@ -123,7 +147,7 @@ const Page = () => {
   if (!missionPackContent) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <p>No mission pack available for the current stage.</p>
+        <p>{isArchived ? "This team has been archived. Please register for a new team to participate." : "No mission pack available for the current stage."}</p>
       </div>
     )
   }

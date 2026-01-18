@@ -27,6 +27,9 @@ export function EnhancementSubmission() {
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
   const [is4Submission, setIs4Submission] = useState(false);
+  const [isTrialChallenge, setIsTrialChallenge] = useState(false);
+  const [competitionYear, setCompetitionYear] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [description, setDescription] = useState("");
   const [justification, setJustification] = useState("");
@@ -67,7 +70,7 @@ export function EnhancementSubmission() {
         const groupingNames = teamGroupings.map((g) => g.grouping);
         const { data: activeGroupings, error: statusError } = await supabase
           .from("groupingStatus")
-          .select("grouping, is4Submission")
+          .select("grouping, is4Submission, is_trial")
           .in("grouping", groupingNames)
           .eq("status", "active");
 
@@ -79,6 +82,23 @@ export function EnhancementSubmission() {
         const activeGroup = activeGroupings[0]?.grouping || null;
         setActiveGrouping(activeGroup);
         setIs4Submission(activeGroupings[0]?.is4Submission || false);
+        setIsTrialChallenge(activeGroupings[0]?.is_trial || false);
+
+        // Fetch competition year
+        const { data: teamInfo, error: teamInfoError } = await supabase
+          .from("teams")
+          .select("competition_year, is_archived")
+          .eq("id", teamData.teamId)
+          .single();
+        
+        if (teamInfo?.is_archived === true) {
+          setIsArchived(true);
+          return;
+        }
+        
+        if (teamInfo?.competition_year) {
+          setCompetitionYear(teamInfo.competition_year);
+        }
       }
     };
 
@@ -246,6 +266,8 @@ export function EnhancementSubmission() {
           stage: activeGrouping,
           createdAt: new Date().toISOString(),
           penalty: is4Submission, // Set penalty based on is4Submission
+          trial_status: isTrialChallenge,
+          competition_year: competitionYear,
         },
       ]);
 
@@ -269,6 +291,14 @@ export function EnhancementSubmission() {
       setIsLoading(false);
     }
   };
+
+  if (isArchived) {
+    return (
+      <div className="p-6">
+        <p>This team has been archived. Please register for a new team to participate.</p>
+      </div>
+    );
+  }
 
   return (
     <Card>
