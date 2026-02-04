@@ -192,7 +192,7 @@ function Sidebar({ onSignOut }: { onSignOut: () => void }) {
         {
           href: "/dashboard/submission/bugs",
           label: "Bugs",
-          subItems: [...Array(10)].map((_, i) => ({
+          subItems: [...Array(5)].map((_, i) => ({
             href: `/dashboard/submission/bugs/${i + 1}`,
             label: `Bug #${i + 1}`,
           })),
