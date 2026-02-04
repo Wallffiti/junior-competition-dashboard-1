@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Bugcrusher Hackathon",
+  title: "Hackathon - Bugcrusher® – Junior Hackathon",
   description: "Competition dashboard for bug crushers",
   icons: {
     icon: '/favicon.ico'

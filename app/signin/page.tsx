@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -103,16 +105,24 @@ export default function SignInPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="w-full max-w-md">
-        {/* Category Indicator */}
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
-          <p className="text-sm font-semibold text-blue-900">Bugcrusher Dashboard</p>
-          <p className="text-xs text-blue-700 mt-1">Sign in to access your competition dashboard</p>
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Link href="https://bugcrusher.net" target="_blank" rel="noopener noreferrer">
+            <Image
+              src="https://bugcrusher.net/wp-content/uploads/2024/03/bugcrusher-logo-125x125.png"
+              alt="BugCrusher Logo"
+              width={125}
+              height={125}
+              priority
+            />
+          </Link>
         </div>
+        
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">Sign in</CardTitle>
-            <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+            <CardTitle className="text-3xl font-bold text-center">Bugcrusher Dashboard</CardTitle>
+            <CardDescription className="text-center">Sign in to access your competition dashboard</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-4">
