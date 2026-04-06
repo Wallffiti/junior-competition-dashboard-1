@@ -5,6 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import { getUserTeamDetails } from "@/lib/teamHelpers"
 import { useToast } from "@/hooks/use-toast"
+import { BlockNoteRenderer } from "@/components/blocknote-renderer"
+
+// Helper function to detect if content is BlockNote JSON format
+const isBlockNoteContent = (content: string): boolean => {
+  try {
+    const parsed = JSON.parse(content)
+    return Array.isArray(parsed) && parsed.every((block: any) => block.type && typeof block.type === "string")
+  } catch {
+    return false
+  }
+}
 
 export function DashboardContent() {
   const [updates, setUpdates] = useState<any[]>([])
@@ -132,7 +143,11 @@ export function DashboardContent() {
               <CardTitle className="text-xl font-semibold">{update.description}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div dangerouslySetInnerHTML={{ __html: update.content }} />
+              {isBlockNoteContent(update.content) ? (
+                <BlockNoteRenderer content={update.content} />
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: update.content }} />
+              )}
             </CardContent>
           </Card>
         ))
