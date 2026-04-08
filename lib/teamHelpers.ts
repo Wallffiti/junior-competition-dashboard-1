@@ -4,11 +4,11 @@ import { supabase } from "@/lib/supabase";
  * Fetches team details for a logged-in user.
  */
 export const getUserTeamDetails = async (userEmail: string) => {
-  // First, check if the user is a teacher
+  // First, check if the user is a teacher - Use ilike for case-insensitive comparison
   const { data: teacherTeam, error: teacherError } = await supabase
     .from("teams")
     .select("id, teamName, teacherEmail, teacherName, teamMembers, category, competition_year")
-    .eq("teacherEmail", userEmail)
+    .ilike("teacherEmail", userEmail.trim())
     .order("competition_year", { ascending: false });
 
   if (teacherError && teacherError.code !== "PGRST116") {

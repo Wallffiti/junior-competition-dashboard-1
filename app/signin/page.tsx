@@ -18,11 +18,11 @@ export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
   async function checkTeamCategory(userEmail: string) {
-    // First check if email matches teacherEmail
+    // First check if email matches teacherEmail - Use ilike for case-insensitive comparison
     let { data: teacherData, error: teacherError } = await supabase
       .from("teams")
-      .select("teamName, category, competition_year")
-      .eq("teacherEmail", userEmail)
+      .select("teamName, category, competition_year, teacherEmail")
+      .ilike("teacherEmail", userEmail.trim())
       .order("competition_year", { ascending: false });
   
     if (teacherData && teacherData.length > 0) {
@@ -35,11 +35,11 @@ export default function SignInPage() {
       console.error("Teacher query error:", teacherError);
       return null;
     }
-  
+    
     // If not a teacher, check studentEmail in teamMembers
     const { data: memberData, error: memberError } = await supabase
       .from("teams")
-      .select("teamName, category, competition_year")
+      .select("teamName, category, competition_year, teamMembers")
       .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
       .order("competition_year", { ascending: false });
   

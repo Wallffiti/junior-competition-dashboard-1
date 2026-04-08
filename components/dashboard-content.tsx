@@ -26,8 +26,8 @@ export function DashboardContent() {
     const fetchUpdates = async () => {
       // 1. Get current user
       const { data: user, error: userError } = await supabase.auth.getUser()
+      
       if (userError || !user?.user?.email) {
-        console.warn("⚠️ No authenticated user found.")
         toast({
           title: "Error",
           description: "User not authenticated.",
@@ -38,8 +38,8 @@ export function DashboardContent() {
 
       // 2. Get user's team details
       const teamData = await getUserTeamDetails(user.user.email)
+      
       if (!teamData) {
-        console.warn("No team data found.")
         toast({
           title: "Error",
           description: "Team data not found.",
@@ -55,7 +55,6 @@ export function DashboardContent() {
         .eq("teamName", teamData.teamName)
 
       if (groupingError || !teamGroupings || teamGroupings.length === 0) {
-        console.warn("No groupings found for team:", groupingError?.message)
         toast({
           title: "Error",
           description: "No groupings found for team.",
@@ -73,7 +72,6 @@ export function DashboardContent() {
         .in("stageName", groupingNames)
 
       if (stageError || !stageData || stageData.length === 0) {
-        console.warn("Stages not found for groupings:", stageError?.message)
         toast({
           title: "Error",
           description: "Stages not found.",
@@ -98,7 +96,6 @@ export function DashboardContent() {
         .order("announcement_date", { ascending: false })
 
       if (updatesError || !updatesData) {
-        console.warn("Updates not found:", updatesError?.message)
         toast({
           title: "Error",
           description: "No updates found.",
