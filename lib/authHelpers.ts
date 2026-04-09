@@ -11,11 +11,11 @@ export async function getAuthenticatedUser() {
 }
 
 export async function getUserTeam(email: string) {
-  // 1️⃣ First, check if the user is a TEACHER (get latest year)
+  // 1️⃣ First, check if the user is a TEACHER (get latest year) - Use ilike for case-insensitive
   const { data: teacherTeams } = await supabase
     .from("teams")
     .select("teamName, competition_year")
-    .eq("teacherEmail", email)
+    .ilike("teacherEmail", email.trim())
     .order("competition_year", { ascending: false });
 
   if (teacherTeams && teacherTeams.length > 0) {
@@ -46,11 +46,11 @@ export async function fetchUserTeamData(setUserEmail: any, setTeamName: any, set
   const email = user.user.email;
   setUserEmail(email);
 
-  // Check if user is a teacher - get latest year
+  // Check if user is a teacher - get latest year - Use ilike for case-insensitive
   const { data: teacherTeams, error: teacherError } = await supabase
     .from("teams")
     .select("teamName, teacherEmail, teacherName, teamMembers, category, competition_year")
-    .eq("teacherEmail", email)
+    .ilike("teacherEmail", email.trim())
     .order("competition_year", { ascending: false });
 
   if (!teacherError && teacherTeams && teacherTeams.length > 0) {
@@ -84,11 +84,11 @@ export async function fetchUserTeamData(setUserEmail: any, setTeamName: any, set
 }
 
 export async function getUserProfile(email: string) {
-  // Check if user is a teacher - get latest year only
+  // Check if user is a teacher - get latest year only - Use ilike for case-insensitive
   const { data: teacherTeams, error: teacherError } = await supabase
     .from("teams")
     .select("*")
-    .eq("teacherEmail", email)
+    .ilike("teacherEmail", email.trim())
     .order("competition_year", { ascending: false });
 
   if (teacherTeams && teacherTeams.length > 0) {
