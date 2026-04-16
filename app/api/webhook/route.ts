@@ -2,16 +2,22 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-03-31.basil",
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-03-31.basil",
+  });
+}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 export async function POST(req: NextRequest) {
+  const stripe = getStripe();
+  const supabase = getSupabase();
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
 
