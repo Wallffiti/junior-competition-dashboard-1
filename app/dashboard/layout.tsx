@@ -21,6 +21,8 @@ import {
   Send,
   ChevronDown,
   Clock,
+  ShoppingBag,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AdSlideshow } from "@/components/ad";
@@ -101,6 +103,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const isDashboardRoot = pathname === "/dashboard"; // Check if we're on the root dashboard
   const isProfilePage = pathname === "/dashboard/profile"; // Check if we're on the profile page
+  const isShopPage = pathname === "/dashboard/shop" || pathname === "/dashboard/my-orders"; // Shop pages are always accessible
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -131,8 +134,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {isDashboardRoot ? (
             // Show DashboardContent on /dashboard regardless of isAllowed
             <DashboardContent />
-          ) : isProfilePage ? (
-            // Always show profile page regardless of isAllowed
+          ) : isProfilePage || isShopPage ? (
+            // Always show profile and shop pages regardless of isAllowed
             children
           ) : isAllowed === null ? (
             <div className="flex h-full items-center justify-center">
@@ -207,6 +210,8 @@ function Sidebar({ onSignOut }: { onSignOut: () => void }) {
       ],
     },
     { href: "/dashboard/history", icon: Clock, label: "History" },
+    { href: "/dashboard/shop", icon: ShoppingBag, label: "Shop" },
+    { href: "/dashboard/my-orders", icon: ClipboardList, label: "My Orders" },
   ];
 
   return (
