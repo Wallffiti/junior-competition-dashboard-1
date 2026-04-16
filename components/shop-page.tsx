@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getAuthenticatedUser, getUserProfile } from "@/lib/authHelpers";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
   Minus,
   Plus,
   AlertCircle,
+  CreditCard,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -122,8 +124,10 @@ export function ShopPage() {
   const [mobileNumber, setMobileNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentSlipFile, setPaymentSlipFile] = useState<File | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
 
   const { toast } = useToast();
+  const router = useRouter();
 
   // Determine active competition year from env
   const competitionYear = parseInt(
@@ -379,7 +383,7 @@ export function ShopPage() {
       return;
     }
 
-    if (!paymentSlipFile) {
+    if (paymentMethod === "manual" && !paymentSlipFile) {
       toast({
         title: "Payment slip required",
         description: "Please upload a payment slip for manual transfer.",
@@ -391,13 +395,48 @@ export function ShopPage() {
     setSubmitting(true);
 
     try {
-      // Upload payment slip to Supabase Storage
-      const fileExt = paymentSlipFile.name.split(".").pop();
+      if (paymentMethod === "stripe") {
+        // Stripe Checkout flow — call API route
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cart: cart.map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              orderType: item.orderType,
+              sizes: item.sizes,
+              names: item.names,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              discount: item.discount,
+              quantity: item.quantity,
+            })),
+            userEmail: profile.email,
+            teamId: profile.teamId,
+            competitionYear,
+            recipientName: recipientName.trim(),
+            deliveryAddress: deliveryAddress.trim(),
+            mobileNumber: mobileNumber.trim(),
+            addressChangeDeadline: config?.address_change_deadline || null,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Stripe checkout failed");
+
+        // Redirect to Stripe
+        window.location.href = data.url;
+        return;
+      }
+
+      // Manual payment flow
+      const fileExt = paymentSlipFile!.name.split(".").pop();
       const filePath = `payment-slips/${profile.teamId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("payment-slips")
-        .upload(filePath, paymentSlipFile);
+        .upload(filePath, paymentSlipFile!);
 
       if (uploadError) {
         throw new Error(`Upload failed: ${uploadError.message}`);
@@ -465,6 +504,9 @@ export function ShopPage() {
       setCart([]);
       setCheckoutOpen(false);
       setPaymentSlipFile(null);
+
+      // Redirect to My Orders page
+      router.push("/dashboard/my-orders");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -787,47 +829,80 @@ export function ShopPage() {
             </div>
 
             {/* Payment */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="font-semibold">Payment Method</Label>
-              <div className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 text-blue-500" />
-                  <div className="text-sm">
-                    <p className="font-medium">Bank Transfer / Online Banking</p>
-                    <p className="text-muted-foreground">
-                      Transfer to the account below, then upload your payment
-                      slip.
-                    </p>
-                    <div className="mt-2 bg-blue-50 rounded p-2 text-xs space-y-1">
-                      <p>
-                        <strong>Bank:</strong> Will be provided by admin
-                      </p>
-                      <p>
-                        <strong>Account:</strong> Will be provided by admin
-                      </p>
-                      <p>
-                        <strong>Reference:</strong> {profile?.teamName}
-                      </p>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(val) => setPaymentMethod(val as "manual" | "stripe")}
+                className="space-y-2"
+              >
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                    paymentMethod === "stripe" ? "border-blue-500 bg-blue-50/50" : ""
+                  }`}
+                  onClick={() => setPaymentMethod("stripe")}
+                >
+                  <div className="flex items-center gap-3">
+                    <RadioGroupItem value="stripe" id="stripe" />
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-blue-600" />
+                      <Label htmlFor="stripe" className="font-medium cursor-pointer">
+                        Pay Online (Card / FPX)
+                      </Label>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <Label className="text-sm">Upload Payment Slip</Label>
-                  <Input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) =>
-                      setPaymentSlipFile(e.target.files?.[0] || null)
-                    }
-                    className="mt-1"
-                  />
-                  {paymentSlipFile && (
-                    <p className="text-xs text-green-600 mt-1">
-                      {paymentSlipFile.name}
+                  {paymentMethod === "stripe" && (
+                    <p className="text-xs text-muted-foreground mt-2 ml-7">
+                      You will be redirected to a secure Stripe payment page.
                     </p>
                   )}
                 </div>
-              </div>
+
+                <div
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                    paymentMethod === "manual" ? "border-blue-500 bg-blue-50/50" : ""
+                  }`}
+                  onClick={() => setPaymentMethod("manual")}
+                >
+                  <div className="flex items-center gap-3">
+                    <RadioGroupItem value="manual" id="manual" />
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <Label htmlFor="manual" className="font-medium cursor-pointer">
+                        Bank Transfer / Online Banking
+                      </Label>
+                    </div>
+                  </div>
+                  {paymentMethod === "manual" && (
+                    <div className="mt-3 ml-7 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Transfer to the account below, then upload your payment slip.
+                      </p>
+                      <div className="bg-blue-50 rounded p-2 text-xs space-y-1">
+                        <p><strong>Bank:</strong> CIMB</p>
+                        <p><strong>Account:</strong> 8010864586</p>
+                        <p><strong>Reference:</strong> {profile?.teamName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm">Upload Payment Slip</Label>
+                        <Input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) =>
+                            setPaymentSlipFile(e.target.files?.[0] || null)
+                          }
+                          className="mt-1"
+                        />
+                        {paymentSlipFile && (
+                          <p className="text-xs text-green-600 mt-1">
+                            {paymentSlipFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </RadioGroup>
             </div>
           </div>
 
@@ -839,8 +914,10 @@ export function ShopPage() {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Placing order…
+                  {paymentMethod === "stripe" ? "Redirecting…" : "Placing order…"}
                 </>
+              ) : paymentMethod === "stripe" ? (
+                "Pay with Stripe"
               ) : (
                 "Place Order"
               )}

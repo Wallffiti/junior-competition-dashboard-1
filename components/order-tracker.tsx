@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2,
@@ -14,7 +16,9 @@ import {
   Truck,
   PackageCheck,
   XCircle,
+  CreditCard,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrderItem {
   id: string;
@@ -31,6 +35,7 @@ interface Order {
   total_amount: number;
   discount_applied: number;
   payment_status: string;
+  payment_method: string | null;
   status: string;
   tracking_number: string | null;
   estimated_delivery_date: string | null;
@@ -55,6 +60,9 @@ const statusIndex = (status: string) =>
 export function OrderTracker() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
 
   const competitionYear = parseInt(
     process.env.NEXT_PUBLIC_COMPETITION_YEAR || "2026",
@@ -67,6 +75,33 @@ export function OrderTracker() {
       if (!email) {
         setLoading(false);
         return;
+      }
+
+      // If redirected from Stripe with payment=success, verify pending orders first
+      if (searchParams.get("payment") === "success") {
+        // Get pending orders to verify
+        const { data: pendingOrders } = await supabase
+          .from("shop_orders")
+          .select("id")
+          .eq("user_email", email)
+          .eq("competition_year", competitionYear)
+          .eq("status", "pending_payment")
+          .eq("payment_method", "stripe");
+
+        if (pendingOrders && pendingOrders.length > 0) {
+          try {
+            await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderIds: pendingOrders.map((o: any) => o.id),
+                userEmail: email,
+              }),
+            });
+          } catch (err) {
+            // Continue loading orders even if verification fails
+          }
+        }
       }
 
       const { data: ordersData } = await supabase
@@ -117,6 +152,35 @@ export function OrderTracker() {
 
     fetchOrders();
   }, []);
+
+  const handleRetryPayment = async (order: Order) => {
+    const email = await getAuthenticatedUser();
+    if (!email) return;
+
+    setRetryingOrderId(order.id);
+    try {
+      const res = await fetch("/api/checkout-retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderIds: [order.id],
+          userEmail: email,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create payment session");
+
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setRetryingOrderId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -179,7 +243,6 @@ export function OrderTracker() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Progress Steps */}
               {!isCancelled && (
                 <div className="flex items-center justify-between">
                   {STATUS_STEPS.map((step, idx) => {
@@ -233,6 +296,29 @@ export function OrderTracker() {
                   })}
                 </div>
               )}
+
+              {/* Pay Now button for pending Stripe orders */}
+              {order.status === "pending_payment" &&
+                order.payment_method === "stripe" && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center justify-between">
+                    <div className="text-sm">
+                      <p className="font-medium text-yellow-800">Payment incomplete</p>
+                      <p className="text-xs text-yellow-600">Click to complete your payment.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleRetryPayment(order)}
+                      disabled={retryingOrderId === order.id}
+                    >
+                      {retryingOrderId === order.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <CreditCard className="h-4 w-4 mr-1" />
+                      )}
+                      Pay Now
+                    </Button>
+                  </div>
+                )}
 
               {/* Tracking & Delivery */}
               {order.tracking_number && (
