@@ -26,7 +26,6 @@ export default function SignInPage() {
       .order("competition_year", { ascending: false });
   
     if (teacherData && teacherData.length > 0) {
-      // Use the team with the latest competition_year
       const latestTeam = teacherData[0];
       return latestTeam;
     }
@@ -36,17 +35,47 @@ export default function SignInPage() {
       return null;
     }
     
-    // If not a teacher, check studentEmail in teamMembers
+    // 1. Fast path — exact case, current year
+    const currentYear = parseInt(process.env.NEXT_PUBLIC_COMPETITION_YEAR || "2026", 10);
+    const { data: currentExact } = await supabase
+      .from("teams")
+      .select("teamName, category, competition_year, teamMembers")
+      .eq("competition_year", currentYear)
+      .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
+      .limit(1);
+
+    if (currentExact && currentExact.length > 0) {
+      return currentExact[0];
+    }
+
+    // 2. Case-insensitive fallback — current year only
+    const { data: yearTeams } = await supabase
+      .from("teams")
+      .select("teamName, category, competition_year, teamMembers")
+      .eq("competition_year", currentYear);
+
+    if (yearTeams) {
+      for (const team of yearTeams) {
+        const members = team.teamMembers || [];
+        const found = members.some(
+          (m: any) => m.studentEmail && m.studentEmail.toLowerCase() === userEmail.toLowerCase()
+        );
+        if (found) {
+          return team;
+        }
+      }
+    }
+
+    // 3. Exact case, any year
     const { data: memberData, error: memberError } = await supabase
       .from("teams")
       .select("teamName, category, competition_year, teamMembers")
       .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
-      .order("competition_year", { ascending: false });
-  
+      .order("competition_year", { ascending: false })
+      .limit(1);
+
     if (memberData && memberData.length > 0) {
-      // Use the team with the latest competition_year
-      const latestTeam = memberData[0];
-      return latestTeam;
+      return memberData[0];
     }
   
     if (memberError && memberError.code !== "PGRST116") {
@@ -60,9 +89,11 @@ export default function SignInPage() {
     event.preventDefault();
     setIsLoading(true);
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     // First authenticate the user
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: trimmedEmail,
       password,
     });
 
@@ -77,7 +108,7 @@ export default function SignInPage() {
     }
 
     // Check team and category
-    const teamInfo = await checkTeamCategory(email);
+    const teamInfo = await checkTeamCategory(trimmedEmail);
 
     if (!teamInfo) {
       setIsLoading(false);

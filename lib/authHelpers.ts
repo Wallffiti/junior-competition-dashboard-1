@@ -1,5 +1,51 @@
 import { supabase } from "@/lib/supabase";
 
+const currentYear = parseInt(process.env.NEXT_PUBLIC_COMPETITION_YEAR || "2026", 10);
+
+/**
+ * Fast student team lookup with case-insensitive fallback.
+ * 1. Try server-side .contains() (exact case) — instant
+ * 2. Fallback: fetch current year teams only, match client-side
+ */
+async function findStudentTeam(email: string, selectCols: string) {
+  // 1. Fast path — exact case, current year
+  const { data: currentExact } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .eq("competition_year", currentYear)
+    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
+    .limit(1);
+
+  if (currentExact && currentExact.length > 0) return currentExact[0];
+
+  // 2. Case-insensitive fallback — current year only (small dataset)
+  const { data: yearTeams } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .eq("competition_year", currentYear);
+
+  if (yearTeams) {
+    for (const team of yearTeams) {
+      const members = team.teamMembers || [];
+      if (members.some((m: any) => m.studentEmail && m.studentEmail.toLowerCase() === email.toLowerCase())) {
+        return team;
+      }
+    }
+  }
+
+  // 3. Exact case, any year (for past history etc.)
+  const { data: anyYearExact } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
+    .order("competition_year", { ascending: false })
+    .limit(1);
+
+  if (anyYearExact && anyYearExact.length > 0) return anyYearExact[0];
+
+  return null;
+}
+
 export async function getAuthenticatedUser() {
   const { data: user, error } = await supabase.auth.getUser();
 
@@ -22,18 +68,9 @@ export async function getUserTeam(email: string) {
     return teacherTeams[0].teamName;
   }
 
-  // 2️⃣ Check if the user is a TEAM MEMBER (student email inside JSONB, get latest year)
-  const { data: studentTeams } = await supabase
-    .from("teams")
-    .select("teamName, competition_year")
-    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
-    .order("competition_year", { ascending: false});
-
-  if (studentTeams && studentTeams.length > 0) {
-    return studentTeams[0].teamName;
-  }
-
-  return null;
+  // 2️⃣ Check if the user is a TEAM MEMBER — fast with fallback
+  const team = await findStudentTeam(email, "teamName, competition_year, teamMembers");
+  return team ? team.teamName : null;
 }
 
 export async function fetchUserTeamData(setUserEmail: any, setTeamName: any, setUserName: any, setCategory?: any) {
@@ -61,24 +98,17 @@ export async function fetchUserTeamData(setUserEmail: any, setTeamName: any, set
     return;
   }
 
-  // Check if user is a student - get latest year
-  const { data: studentTeams, error: studentError } = await supabase
-    .from("teams")
-    .select("teamName, teacherEmail, teacherName, teamMembers, category, competition_year")
-    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
-    .order("competition_year", { ascending: false });
-
-  if (!studentError && studentTeams && studentTeams.length > 0) {
-    const latestTeam = studentTeams[0];
-    const foundMember = latestTeam.teamMembers.find(
-      (member: any) => member.studentEmail === email
+  // Check if user is a student — fast with fallback
+  const team = await findStudentTeam(email, "teamName, teacherEmail, teacherName, teamMembers, category, competition_year");
+  if (team) {
+    const members = team.teamMembers || [];
+    const foundMember = members.find(
+      (member: any) => member.studentEmail && member.studentEmail.toLowerCase() === email.toLowerCase()
     );
-    
     if (foundMember) {
-      setTeamName(latestTeam.teamName);
+      setTeamName(team.teamName);
       setUserName(foundMember.name);
-      if (setCategory) setCategory(latestTeam.category || "N/A");
-      return;
+      if (setCategory) setCategory(team.category || "N/A");
     }
   }
 }
@@ -117,51 +147,38 @@ export async function getUserProfile(email: string) {
     };
   }
 
-  // Check if user is a student - get latest year only
-  const { data: studentTeams, error: studentError } = await supabase
-    .from("teams")
-    .select("*")
-    .contains("teamMembers", JSON.stringify([{ studentEmail: email }]))
-    .order("competition_year", { ascending: false });
+  // Check if user is a student — fast with fallback
+  const team = await findStudentTeam(email, "*");
+  if (!team) return null;
 
-  if (studentError) {
-    console.error("Error fetching student teams:", studentError);
-    return null;
-  }
+  if (team.teamMembers && Array.isArray(team.teamMembers)) {
+    const foundMember = team.teamMembers.find(
+      (member: any) => member.studentEmail && member.studentEmail.toLowerCase() === email.toLowerCase()
+    );
 
-  if (studentTeams && studentTeams.length > 0) {
-    // Use the latest year team
-    const team = studentTeams[0];
-    
-    if (team.teamMembers && Array.isArray(team.teamMembers)) {
-      const foundMember = team.teamMembers.find(
-        (member: any) => member.studentEmail === email
-      );
-
-      if (foundMember) {
-        return {
-          fullName: foundMember.name || "N/A",
-          email: email,
-          icNumber: foundMember.ic || null,
-          gender: foundMember.gender || null,
-          race: foundMember.race || null,
-          grade: foundMember.grade || null,
-          codingExperience: foundMember.codingExperience || null,
-          tshirtSize: foundMember.size || null,
-          parentName: foundMember.parentName || null,
-          parentMobile: foundMember.parentPhone || null,
-          schoolName: team.schoolName || null,
-          state: team.state || null,
-          district: team.city || null,
-          postcode: team.postalCode || null,
-          isTeacher: false,
-          teamName: team.teamName,
-          teamId: team.id,
-          category: team.category || null,
-          // Teacher-only field
-          mobile: null,
-        };
-      }
+    if (foundMember) {
+      return {
+        fullName: foundMember.name || "N/A",
+        email: email,
+        icNumber: foundMember.ic || null,
+        gender: foundMember.gender || null,
+        race: foundMember.race || null,
+        grade: foundMember.grade || null,
+        codingExperience: foundMember.codingExperience || null,
+        tshirtSize: foundMember.size || null,
+        parentName: foundMember.parentName || null,
+        parentMobile: foundMember.parentPhone || null,
+        schoolName: team.schoolName || null,
+        state: team.state || null,
+        district: team.city || null,
+        postcode: team.postalCode || null,
+        isTeacher: false,
+        teamName: team.teamName,
+        teamId: team.id,
+        category: team.category || null,
+        // Teacher-only field
+        mobile: null,
+      };
     }
   }
 

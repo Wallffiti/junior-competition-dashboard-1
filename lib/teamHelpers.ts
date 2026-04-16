@@ -1,5 +1,51 @@
 import { supabase } from "@/lib/supabase";
 
+const currentYear = parseInt(process.env.NEXT_PUBLIC_COMPETITION_YEAR || "2026", 10);
+
+/**
+ * Case-insensitive student team lookup.
+ * Fast path: server-side .contains() (exact case).
+ * Fallback: fetch current year teams only and match client-side.
+ */
+async function findStudentTeam(userEmail: string, selectCols: string) {
+  // 1. Fast path — exact case, current year
+  const { data: currentExact } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .eq("competition_year", currentYear)
+    .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
+    .limit(1);
+
+  if (currentExact && currentExact.length > 0) return currentExact[0];
+
+  // 2. Case-insensitive fallback — current year only (small dataset)
+  const { data: yearTeams } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .eq("competition_year", currentYear);
+
+  if (yearTeams) {
+    for (const team of yearTeams) {
+      const members = team.teamMembers || [];
+      if (members.some((m: any) => m.studentEmail && m.studentEmail.toLowerCase() === userEmail.toLowerCase())) {
+        return team;
+      }
+    }
+  }
+
+  // 3. Exact case, any year (for past history pages etc.)
+  const { data: anyYearExact } = await supabase
+    .from("teams")
+    .select(selectCols)
+    .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
+    .order("competition_year", { ascending: false })
+    .limit(1);
+
+  if (anyYearExact && anyYearExact.length > 0) return anyYearExact[0];
+
+  return null;
+}
+
 /**
  * Fetches team details for a logged-in user.
  */
@@ -16,43 +62,24 @@ export const getUserTeamDetails = async (userEmail: string) => {
   }
 
   if (teacherTeam && teacherTeam.length > 0) {
-    // Use the team with the latest competition_year
     const latestTeam = teacherTeam[0];
     return {
       teamId: latestTeam.id,
       teamName: latestTeam.teamName,
-      authorName: latestTeam.teacherName, // Use teacher name
-      category: latestTeam.category, // Add category
+      authorName: latestTeam.teacherName,
+      category: latestTeam.category,
     };
   }
 
-  // 🔥 FIXED: Query teamMembers JSONB correctly!
-  const { data: studentTeams, error: studentError } = await supabase
-    .from("teams")
-    .select("id, teamName, teamMembers, category, competition_year")
-    .contains("teamMembers", JSON.stringify([{ studentEmail: userEmail }]))
-    .order("competition_year", { ascending: false });
+  // Student lookup — fast with fallback
+  const team = await findStudentTeam(userEmail, "id, teamName, teamMembers, category, competition_year");
+  if (!team) return null;
 
-  if (studentError) {
-    return null;
-  }
+  const foundMember = (team.teamMembers || []).find(
+    (m: any) => m.studentEmail && m.studentEmail.toLowerCase() === userEmail.toLowerCase()
+  );
 
-  if (!studentTeams || studentTeams.length === 0) {
-    return null;
-  }
-
-  // Find the student in `teamMembers` - use latest year
-  const team = studentTeams[0];
-  const foundMember = team.teamMembers.find((member: any) => member.studentEmail === userEmail);
-  
-  if (!foundMember) {
-    return null;
-  }
-
-  return {
-    teamId: team.id,
-    teamName: team.teamName,
-    authorName: foundMember.name, // Use student name
-    category: team.category, // Add category
-  };
+  return foundMember
+    ? { teamId: team.id, teamName: team.teamName, authorName: foundMember.name, category: team.category }
+    : null;
 };
